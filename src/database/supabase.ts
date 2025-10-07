@@ -7,7 +7,11 @@ if (!supabaseUrl || !supabaseKey) {
   throw new Error('Supabase credentials not found');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: false
+  }
+});
 
 export interface User {
   id: number;
@@ -16,10 +20,9 @@ export interface User {
   first_name: string;
   last_name: string | null;
   created_at: string;
-  is_active: boolean;
+  is_active: boolean; // активен = перешел по реферальной ссылке
   coins: number;
   referral_code: string;
-  referred_by: number | null;
   referral_count: number;
   bio?: string;
   position?: string;
@@ -44,8 +47,7 @@ export async function createUser(
   telegramId: number,
   username: string | null,
   firstName: string,
-  lastName: string | null,
-  referredBy: number | null = null
+  lastName: string | null
 ): Promise<User> {
   const referralCode = generateReferralCode();
   
@@ -57,16 +59,27 @@ export async function createUser(
       first_name: firstName,
       last_name: lastName,
       referral_code: referralCode,
-      referred_by: referredBy,
-      is_active: true,
+      is_active: false, // по умолчанию не активен
       coins: 0,
-      referral_count: 0
+      referral_count: 0,
+      links: {}
     })
     .select()
     .single();
 
   if (error) throw error;
   return data;
+}
+
+export async function activateUser(telegramId: number): Promise<void> {
+  const { error } = await supabase
+    .from('users')
+    .update({
+      is_active: true
+    })
+    .eq('telegram_id', telegramId);
+
+  if (error) throw error;
 }
 
 export async function getUserByTelegramId(telegramId: number): Promise<User | null> {
@@ -91,7 +104,7 @@ export async function getUserByReferralCode(referralCode: string): Promise<User 
   return data;
 }
 
-export async function addReferral(referrerId: number, referredId: number): Promise<void> {
+export async function addReferral(referrerId: number): Promise<void> {
   const { data: currentUser, error: fetchError } = await supabase
     .from('users')
     .select('coins, referral_count')
@@ -99,15 +112,6 @@ export async function addReferral(referrerId: number, referredId: number): Promi
     .single();
 
   if (fetchError) throw fetchError;
-
-  const { error: referralError } = await supabase
-    .from('referrals')
-    .insert({
-      referrer_id: referrerId,
-      referred_id: referredId
-    });
-
-  if (referralError) throw referralError;
 
   const { error: updateError } = await supabase
     .from('users')
@@ -120,16 +124,30 @@ export async function addReferral(referrerId: number, referredId: number): Promi
   if (updateError) throw updateError;
 }
 
+export async function updateUserProfile(
+  telegramId: number, 
+  updates: { bio?: string; position?: string; links?: any }
+): Promise<User> {
+  const { data, error } = await supabase
+    .from('users')
+    .update(updates)
+    .eq('telegram_id', telegramId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function canUserAccessMiniApp(telegramId: number): Promise<boolean> {
   const user = await getUserByTelegramId(telegramId);
   return user !== null && user.is_active;
 }
 
-// Функция для получения реферальной ссылки (только для пользователей с рефералами)
 export async function getReferralLink(telegramId: number, botUsername: string): Promise<string | null> {
   const user = await getUserByTelegramId(telegramId);
-  if (!user || user.referral_count === 0) {
-    return null; // Только пользователи с рефералами получают ссылку
+  if (!user || !user.is_active) {
+    return null; // Только активные пользователи получают ссылку
   }
   return `https://t.me/${botUsername}?start=${user.referral_code}`;
 }

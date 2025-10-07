@@ -1,15 +1,38 @@
 import { Bot } from 'grammy';
-import dotenv from 'dotenv';
+import express from 'express';
+
+// Инициализация Express для health checks
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Health check endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'Bot is running', 
+    timestamp: new Date().toISOString(),
+    service: 'Telegram Bot'
+  });
+});
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy' });
+});
+
+// Запускаем сервер
+app.listen(PORT, () => {
+  console.log(`🚀 Health check server running on port ${PORT}`);
+});
+
+// Импортируем функции Supabase
 import { 
   createUser, 
   getUserByTelegramId, 
   getUserByReferralCode, 
   addReferral, 
-  canUserAccessMiniApp,
   getReferralLink 
-} from './database/supabase.js'; 
-dotenv.config();
+} from './database/supabase';
 
+// Инициализация бота
 const BOT_TOKEN = process.env.BOT_TOKEN;
 if (!BOT_TOKEN) {
   console.error('❌ BOT_TOKEN not found');
@@ -45,7 +68,6 @@ bot.command('start', async (ctx) => {
     if (existingUser) {
       let welcomeMessage = `👋 С возвращением, ${firstName}!\n\n💰 Ваши монеты: ${existingUser.coins}\n👥 Ваши рефералы: ${existingUser.referral_count}`;
 
-      // Только пользователи с рефералами получают ссылку
       const referralLink = await getReferralLink(telegramId, ctx.me.username);
       if (referralLink) {
         welcomeMessage += `\n\n🎯 Ваша реферальная ссылка:\n${referralLink}\n\nОтправляй друзьям и получай +1 монету!`;
@@ -90,7 +112,6 @@ bot.command('status', async (ctx) => {
 
     let statusMessage = `📊 Ваш статус:\n\n💰 Монеты: ${user.coins}\n👥 Рефералов: ${user.referral_count}`;
 
-    // Только пользователи с рефералами получают ссылку
     const referralLink = await getReferralLink(telegramId, ctx.me.username);
     if (referralLink) {
       statusMessage += `\n\n🎯 Ваша реферальная ссылка:\n${referralLink}`;
@@ -117,7 +138,6 @@ bot.command('referral', async (ctx) => {
       return await ctx.reply('Сначала используйте /start');
     }
 
-    // Только пользователи с рефералами получают ссылку
     const referralLink = await getReferralLink(telegramId, ctx.me.username);
     if (!referralLink) {
       return await ctx.reply('📊 Пригласите первого друга чтобы получить реферальную ссылку!');

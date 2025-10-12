@@ -42,7 +42,7 @@ export interface Event {
   date: string;
   time: string;
   location: string;
-  location_coords?: { // ДОБАВЛЕНО: поле для координат
+  location_coords?: {
     lat: number;
     lng: number;
   } | null;
@@ -166,38 +166,4 @@ export async function getReferralLink(telegramId: number, botUsername: string): 
     return null;
   }
   return `https://t.me/${botUsername}?start=${user.referral_code}`;
-}
-
-// ДОБАВЛЕНО: Функции для работы с событиями
-export async function createEvent(eventData: Omit<Event, 'id' | 'created_at'>): Promise<Event> {
-  const { data, error } = await supabase
-    .from('events')
-    .insert(eventData)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-}
-
-export async function getEvents(): Promise<Event[]> {
-  const { data, error } = await supabase
-    .from('events')
-    .select('*')
-    .order('date', { ascending: true });
-
-  if (error) throw error;
-  return data || [];
-}
-
-export async function updateEvent(eventId: number, updates: Partial<Event>): Promise<Event> {
-  const { data, error } = await supabase
-    .from('events')
-    .update(updates)
-    .eq('id', eventId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
 }

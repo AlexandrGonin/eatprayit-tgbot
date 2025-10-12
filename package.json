@@ -1,12 +1,12 @@
 {
-  "name": "tg-admin-bot",
+  "name": "telegram-bot",
   "version": "1.0.0",
-  "description": "Admin bot for IT Events management",
-  "main": "dist/bot.js",
+  "description": "Telegram bot for IT Events with referral system",
+  "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/bot.js",
-    "dev": "ts-node-dev --respawn --transpile-only src/bot.ts"
+    "start": "node dist/server.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts"
   },
   "dependencies": {
     "grammy": "^1.20.3",

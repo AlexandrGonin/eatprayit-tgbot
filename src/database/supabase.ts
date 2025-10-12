@@ -20,7 +20,7 @@ export interface User {
   first_name: string;
   last_name: string | null;
   created_at: string;
-  is_active: boolean; // активен = перешел по реферальной ссылке
+  is_active: boolean;
   coins: number;
   referral_code: string;
   referral_count: number;
@@ -32,6 +32,22 @@ export interface User {
     vk?: string;
     instagram?: string;
   };
+}
+
+export interface Event {
+  id: number;
+  title: string;
+  short_description: string;
+  description?: string;
+  date: string;
+  time: string;
+  location: string;
+  location_coords?: { // ДОБАВЛЕНО: поле для координат
+    lat: number;
+    lng: number;
+  } | null;
+  event_type?: string;
+  created_at: string;
 }
 
 function generateReferralCode(): string {
@@ -59,7 +75,7 @@ export async function createUser(
       first_name: firstName,
       last_name: lastName,
       referral_code: referralCode,
-      is_active: false, // по умолчанию не активен
+      is_active: false,
       coins: 0,
       referral_count: 0,
       links: {}
@@ -147,7 +163,41 @@ export async function canUserAccessMiniApp(telegramId: number): Promise<boolean>
 export async function getReferralLink(telegramId: number, botUsername: string): Promise<string | null> {
   const user = await getUserByTelegramId(telegramId);
   if (!user || !user.is_active) {
-    return null; // Только активные пользователи получают ссылку
+    return null;
   }
   return `https://t.me/${botUsername}?start=${user.referral_code}`;
+}
+
+// ДОБАВЛЕНО: Функции для работы с событиями
+export async function createEvent(eventData: Omit<Event, 'id' | 'created_at'>): Promise<Event> {
+  const { data, error } = await supabase
+    .from('events')
+    .insert(eventData)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getEvents(): Promise<Event[]> {
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .order('date', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function updateEvent(eventId: number, updates: Partial<Event>): Promise<Event> {
+  const { data, error } = await supabase
+    .from('events')
+    .update(updates)
+    .eq('id', eventId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
 }
